@@ -25,7 +25,7 @@ We follow **Semantic Versioning (SemVer)** in the format: `MAJOR.MINOR.PATCH`
 
 ### Reusable Workflow File
 
-**Path:** `.github/workflows/MS_VersioningandReleaseAutomation.yaml`
+**Path:** `Mahesh2511/AUTO-Release-Tagging/.github/workflows/TaggingReleaseAutomation.yaml`
 
 This reusable workflow performs:
 - Commit message linting (using `commitlint`)
@@ -231,6 +231,6 @@ You can edit release notes before publishing or modify the changelog anytime sin
 ## Contact
 
 For help or questions, contact the DevOps Team or open an issue in the repo.
-Contact the **SecDevOps Team**: `secdevops@matthey.com`
+Contact the : `pawarmahesh2511@gmail.com`
 
 ---
