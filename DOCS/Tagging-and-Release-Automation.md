@@ -45,7 +45,7 @@ To use this reusable workflow in your repository, create a caller workflow like 
 name: Call Reusable Tagging Workflow
 
 permissions:
-  contents:write
+  contents: write
 
 on:
   workflow_dispatch:
