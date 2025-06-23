@@ -1,0 +1,179 @@
+name: Versioning and Release Automation
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: 'Branch to trigger the release'
+        required: true
+        type: string
+
+jobs:
+  tag_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure full commit history and tags are fetched
+          
+      - name: Install Commitlint Dependencies
+        run: |
+          npm install --save-dev @commitlint/config-conventional @commitlint/cli       
+          
+      - name: Lint Commit Messages
+        run: |
+          npx commitlint --from=HEAD~1 --to=HEAD  # Lint commits from last to current commit
+          
+      - name: Fetch All Tags
+        run: git fetch --tags  # Ensure all previous tags are available
+
+      - name: Generate Semantic Version Tag
+        id: generate_tag
+        run: |
+          # Get the latest valid semantic tag
+          latest_tag=$(git tag --sort=-creatordate --merged HEAD | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | head -n 1)
+          echo "LATEST_TAG=$latest_tag" >> $GITHUB_ENV
+          
+          # Initialize new tag logic if no valid previous tags exist
+          if [ -z "$latest_tag" ]; then
+            new_tag="v1.0.0"  # Start with v1.0.0 for the first release
+          else
+            major=$(echo $latest_tag | cut -d '.' -f 1 | sed 's/v//')
+            minor=$(echo $latest_tag | cut -d '.' -f 2)
+            patch=$(echo $latest_tag | cut -d '.' -f 3)
+            
+            # Scan all commits since the last tag
+            commit_messages=$(git log $latest_tag..HEAD --pretty=%B)
+
+            # Major bump if any commit has BREAKING CHANGE
+            if echo "$commit_messages" | grep -q "BREAKING CHANGE"; then
+              new_tag="v$((major + 1)).0.0"  # Major version bump
+            # Minor bump if any commit has a feature
+            elif echo "$commit_messages" | grep -q "^feat:"; then
+              new_tag="v$major.$((minor + 1)).0"  # Minor version bump
+            # Default to patch version bump
+            else
+              new_tag="v$major.$minor.$((patch + 1))"  # Patch version bump
+            fi
+          fi
+
+          # Check if the tag already exists, and increment if necessary (Option 2)
+          # tag_exists=$(git tag -l "$new_tag")
+          # if [ -n "$tag_exists" ]; then
+          #   # Increment the patch version
+          #   new_tag="v$major.$minor.$((patch + 1))"
+          # fi
+
+          echo "NEW_TAG=$new_tag" >> $GITHUB_ENV
+          echo "Generated new tag: $new_tag"
+
+
+      - name: Run Tests
+        run: |
+          # Add the steps to run tests here, for example:
+          echo "Running tests for release..."
+
+      - name: Create and Push Tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          
+          # Only create a tag for the final commit of the release process
+          git tag ${{ env.NEW_TAG }}
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git ${{ env.NEW_TAG }}
+
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          echo "## Release ${{ env.NEW_TAG }}" > release_notes.md
+          echo "" >> release_notes.md  # Add space between sections
+      
+          # Add New Features section
+          echo "### New Features" >> release_notes.md
+          echo "" >> release_notes.md
+          feat_commits=$(git log ${{ env.LATEST_TAG }}..HEAD --pretty=format:"- %s" --grep="^feat:")
+      
+          if [ -z "$feat_commits" ]; then
+            echo "No new features in this release." >> release_notes.md
+          else
+            echo "$feat_commits" >> release_notes.md
+          fi
+      
+          # Add Bug Fixes section
+          echo "" >> release_notes.md
+          echo "### Bug Fixes" >> release_notes.md
+          echo "" >> release_notes.md
+          fix_commits=$(git log ${{ env.LATEST_TAG }}..HEAD --pretty=format:"- %s" --grep="^fix:")
+      
+          if [ -z "$fix_commits" ]; then
+            echo "No bug fixes in this release." >> release_notes.md
+          else
+            echo "$fix_commits" >> release_notes.md
+          fi
+      
+          # Add Breaking Changes section
+          echo "" >> release_notes.md
+          echo "### Breaking Changes" >> release_notes.md
+          echo "" >> release_notes.md
+          breaking_commits=$(git log ${{ env.LATEST_TAG }}..HEAD --pretty=format:"- %s" --grep="BREAKING CHANGE")
+      
+          if [ -z "$breaking_commits" ]; then
+            echo "No breaking changes in this release." >> release_notes.md
+          else
+            echo "$breaking_commits" >> release_notes.md
+          fi
+      
+          # Add Known Issues section (manual input placeholder)
+          echo "" >> release_notes.md
+          echo "### Known Issues" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "⚠️ Please manually add known issues here before publishing the release." >> release_notes.md
+      
+          # Show final release notes
+          echo "Generated release notes:"
+          cat release_notes.md
+
+      - name: Update CHANGELOG.md
+        run: |
+          # Compose the new changelog entry
+          new_entry="### ${{ env.NEW_TAG }} - $(date +'%Y-%m-%d')\n$(cat release_notes.md)\n"
+      
+          # If CHANGELOG.md exists, prepend; else create
+          if [ -f CHANGELOG.md ]; then
+            echo -e "$new_entry\n$(cat CHANGELOG.md)" > CHANGELOG.md
+          else
+            echo -e "$new_entry" > CHANGELOG.md
+          fi
+      
+          git add CHANGELOG.md
+          git commit -m "chore: update CHANGELOG for ${{ env.NEW_TAG }}"
+          git push origin HEAD
+            
+
+      - name: Create GitHub Release Using `actions/github-script`
+        uses: actions/github-script@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_TAG: ${{ env.NEW_TAG }}
+        with:
+          script: |
+            const fs = require('fs');
+            const releaseNotes = fs.readFileSync('release_notes.md', 'utf8'); // Read custom release notes
+            const newTag = process.env.NEW_TAG;
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: newTag,
+              name: `Release ${newTag}`,
+              body: releaseNotes.trim(), // Trim extra spaces or empty lines
+              draft: false,
+              prerelease: false,
+              generate_release_notes: true  // Enables GitHub's auto-generated release notes
+            });
+
+            console.log(`Release created with tag ${newTag}`);
