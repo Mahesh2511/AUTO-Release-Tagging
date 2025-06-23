@@ -44,6 +44,9 @@ To use this reusable workflow in your repository, create a caller workflow like 
 ```yaml
 name: Call Reusable Tagging Workflow
 
+permissions:
+  contents:write
+
 on:
   workflow_dispatch:
   push:
@@ -52,7 +55,7 @@ on:
 
 jobs:
   trigger_tag_release:
-    uses: johnsonmatthey/Devops_POC/.github/workflows/MS_VersioningandReleaseAutomation.yaml@release
+    uses: Mahesh2511/AUTO-Release-Tagging/.github/workflows/TaggingReleaseAutomation.yaml@main
     with:
       branch: release
 ```
