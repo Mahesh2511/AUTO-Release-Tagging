@@ -1,3 +1,23 @@
+### v2.1.0 - 2025-08-04
+## Release v2.1.0
+
+### New Features
+
+- feat: Feature/fix2 Merge pull request #3 from Mahesh2511/feature/fix2
+- feat: Create file.txt
+
+### Bug Fixes
+
+- fix: Update test.txt
+
+### Breaking Changes
+
+No breaking changes in this release.
+
+### Known Issues
+
+⚠️ Please manually add known issues here before publishing the release.
+
 ### v2.0.0 - 2025-08-04
 ## Release v2.0.0
 
