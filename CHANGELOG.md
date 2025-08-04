@@ -1,3 +1,24 @@
+### v2.0.0 - 2025-08-04
+## Release v2.0.0
+
+### New Features
+
+- feat: Create test.txt
+
+### Bug Fixes
+
+- fix: Update commitlint.config.js
+
+### Breaking Changes
+
+- BREAKING CHANGE: Update commitlint.config.js
+- BREAKING CHANGE: Merge pull request #1 from Mahesh2511/feature/fix1
+- BREAKING CHANGE: Added another fix in the file
+
+### Known Issues
+
+⚠️ Please manually add known issues here before publishing the release.
+
 ### v1.0.1 - 2025-06-23
 ## Release v1.0.1
 
